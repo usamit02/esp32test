@@ -18,32 +18,26 @@
 #include <Arduino_JSON.h>
 void setup()
 {
+  Serial.begin(115200);
+
   pinMode(14, OUTPUT);
   pinMode(25, OUTPUT);
+  pinMode(27, OUTPUT);
   ledcSetup(0, 12800, 8);
   ledcAttachPin(12, 0);
+  digitalWrite(27, 1);
+  delay(500);
+  digitalWrite(27, 0);
   setupCloudIoT();
   delay(10); // <- fixes some issues with WiFi stability
   if (!mqttClient->connected())
   {
     connect();
   }
-  Serial.begin(115200);
-  logging("app setup start"); // 起動時のログ出力。再起動したこともこれが出力されていれば判別できるかと思います。
-  time_t t;
-  struct tm *tm;
-  static const char *wd[7] = {"Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat"};
-
-  t = time(NULL);
-  tm = localtime(&t);
-  Serial.printf(" %04d/%02d/%02d(%s) %02d:%02d:%02d\n",
-                tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-                wd[tm->tm_wday],
-                tm->tm_hour, tm->tm_min, tm->tm_sec);
 }
 
 unsigned long lastMillis = 0;
-unsigned int led14 = 0;
+unsigned int led27 = 0;
 void loop()
 {
   mqtt->loop();
@@ -53,36 +47,12 @@ void loop()
   {
     connect();
   }
-  String str = Serial.readStringUntil('\n');
-  str.trim();
-  if (str != "")
-  {
-    logging("{\"message\":\"" + str + "\"}");
-  }
   if (millis() - lastMillis > 1000)
   {
     lastMillis = millis();
     thermoRead();
-    //publishTelemetry(mqttClient, "/sensors", getDefaultSensor());
-    //publishTelemetry(getDefaultSensor());
-    /*
-    String payload =
-        String("{\"timestamp\":") + time(nullptr) +
-        String("}");
-    //publishTelemetry(payload);
-    logging(payload);
-    
-    if (led14)
-    {
-      digitalWrite(14, 0);
-      led14 = 0;
-    }
-    else
-    {
-      digitalWrite(14, 1);
-      led14 = 1;
-    }
-    */
+    led27 = led27 ? 0 : 1;
+    digitalWrite(27, led27);
   }
 }
 void logging(String msg)
