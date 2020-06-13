@@ -57,7 +57,6 @@ void loop()
 }
 void logging(String msg)
 {
-
   publishTelemetry(msg); // publish処理(送信処理)
   Serial.println(msg);
 }
@@ -102,6 +101,7 @@ void thermoRead()
     float C = 1 / (log(RT / R0) / 3950 + (1 / 298.15)); //B定数3950
     float TC = C - 273.15;
     Serial.println("adc:" + String(adc) + "  ," + String(TC) + "C");
+    publishTelemetry("{\"thermo\":" + String(TC) + "}");
   }
   else
   {

@@ -7,7 +7,20 @@ const iotClient = new iot.v1.DeviceManagerClient();
 admin.initializeApp();
 
 exports.deviceLog = functions.region('asia-northeast1').pubsub.topic('device-logs').onPublish((message) => {
-  admin.firestore().collection(`serial`).add(message.json);
+  for (let key of Object.keys(message.json)) {
+    if (key === "thermo") {
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = today.getMonth() + 1;
+      const d = today.getDate();
+      const upd = Math.floor(today.getTime() / 1000);
+      admin.database().ref(`monitor/${message.attributes.deviceNumId}/thermo/1/${y}/${m}/${d}/${upd}`).set(
+        message.json[key]
+      ).catch(err => {
+        console.error(`リアルタイムデータベース書き込み失敗${message.json}`);
+      });
+    }
+  }
   console.log("メッセージ受信" + message.attributes.deviceNumId);
   const log = logging.log('device-logs');
   const metadata = {
