@@ -7,21 +7,28 @@ const iotClient = new iot.v1.DeviceManagerClient();
 admin.initializeApp();
 
 exports.deviceLog = functions.region('asia-northeast1').pubsub.topic('device-logs').onPublish((message) => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth() + 1;
+  const d = today.getDate();
+  const upd = Math.floor(today.getTime() / 1000);
   for (let key of Object.keys(message.json)) {
-    if (key === "thermo") {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = today.getMonth() + 1;
-      const d = today.getDate();
-      const upd = Math.floor(today.getTime() / 1000);
-      admin.database().ref(`monitor/${message.attributes.deviceNumId}/thermo/1/${y}/${m}/${d}/${upd}`).set(
-        message.json[key]
+    let obj: any = {};
+    for (let k of Object.keys(message.json[key])) {
+      obj[k] = message.json[key][k];
+    }
+    if (key === "buffer") {
+      admin.database().ref(`monitor/${message.attributes.deviceNumId}/${y}/${m}/${d}/${upd}`).set(obj
+      ).catch(err => {
+        console.error(`リアルタイムデータベース書き込み失敗${message.json.key}`);
+      });
+    } else if (key === "now") {
+      admin.database().ref(`monitor/${message.attributes.deviceNumId}/now`).set({ [upd]: obj }
       ).catch(err => {
         console.error(`リアルタイムデータベース書き込み失敗${message.json}`);
       });
     }
   }
-  console.log("メッセージ受信" + message.attributes.deviceNumId);
   const log = logging.log('device-logs');
   const metadata = {
     resource: {

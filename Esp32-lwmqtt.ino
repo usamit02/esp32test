@@ -16,6 +16,7 @@
  *****************************************************************************/
 #include "esp32-mqtt.h"
 #include <Arduino_JSON.h>
+#define BUFFER_COUNT 60
 void setup()
 {
   Serial.begin(115200);
@@ -37,6 +38,8 @@ void setup()
 }
 
 unsigned long lastMillis = 0;
+unsigned int bufferCount = 0;
+unsigned int bufferss[10][BUFFER_COUNT];
 unsigned int led27 = 0;
 void loop()
 {
@@ -50,7 +53,27 @@ void loop()
   if (millis() - lastMillis > 1000)
   {
     lastMillis = millis();
-    thermoRead();
+    String nowJSON = "\"thermo\":" + String(thermoRead());
+    nowJSON += ",\"voltage\":" + String(12.8);
+    logging("{\"now\":{" + nowJSON + "}}");
+    bufferCount++;
+    if (bufferCount > BUFFER_COUNT - 1)
+    {
+      bufferCount = 0;
+      String bufferJSON = "";
+      for (int i = 0; i < 1; i++)
+      {
+        unsigned long bufferSum = 0;
+        for (int j = 0; j < BUFFER_COUNT; j++)
+        {
+          bufferSum += bufferss[i][j];
+        }
+        unsigned int temp = bufferSum / BUFFER_COUNT;
+        bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8) + "}";
+      }
+      //bufferJSON.remove(bufferJSON.length() - 1);
+      logging("{\"buffer\":" + bufferJSON + "}");
+    }
     led27 = led27 ? 0 : 1;
     digitalWrite(27, led27);
   }
@@ -74,7 +97,7 @@ void messageReceived(String &topic, String &payload)
     ledcWrite(0, brightness);
   }
 }
-void thermoRead()
+unsigned int thermoRead()
 {
   float R0 = 10000.0;
   float R1 = 10000.0;
@@ -97,14 +120,16 @@ void thermoRead()
     adc = adcsum / adcnum;
     float V = (float)adc * 3.3 / (4096 * 1.0); //0.9=補正係数
     digitalWrite(25, 0);
-    float RT = (3.3 / V - 1) * R1;                      //(V / (3.3 - V)) * R1;                    //サーミスタ抵抗値
-    float C = 1 / (log(RT / R0) / 3950 + (1 / 298.15)); //B定数3950
-    float TC = C - 273.15;
-    Serial.println("adc:" + String(adc) + "  ," + String(TC) + "C");
-    publishTelemetry("{\"thermo\":" + String(TC) + "}");
+    float RT = (3.3 / V - 1) * R1;                               //(V / (3.3 - V)) * R1;                    //サーミスタ抵抗値
+    float C = 1 / (log(RT / R0) / 3950 + (1 / 298.15)) - 273.15; //B定数3950
+    Serial.println("adc:" + String(adc) + "  ," + String(C) + "C");
+    unsigned int temp = C * 100;
+    bufferss[0][bufferCount] = temp;
+    return temp;
   }
   else
   {
     Serial.println("サーミスタ異常");
+    return 0;
   }
 }
