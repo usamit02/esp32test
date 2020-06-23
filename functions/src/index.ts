@@ -68,3 +68,8 @@ function generateRequest(deviceId: string, configData: any, isBinary: Boolean) {
     binaryData: dataValue
   };
 }
+export const command = functions.region('asia-northeast1').https.onCall((data, context) => {
+  console.log(`httpリクエスト command:${Object.keys(data)[0]} val:${data[Object.keys(data)[0]]}`);
+  const request = generateRequest("sample-device", data, false);
+  return iotClient.sendCommandToDevice(request);
+});

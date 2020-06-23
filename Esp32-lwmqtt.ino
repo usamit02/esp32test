@@ -17,10 +17,10 @@
 #include "esp32-mqtt.h"
 #include <Arduino_JSON.h>
 #define BUFFER_COUNT 60
+#define NOW_COUNT 60
 void setup()
 {
   Serial.begin(115200);
-
   pinMode(14, OUTPUT);
   pinMode(25, OUTPUT);
   pinMode(27, OUTPUT);
@@ -40,6 +40,7 @@ void setup()
 unsigned long lastMillis = 0;
 unsigned int bufferCount = 0;
 unsigned int bufferss[10][BUFFER_COUNT];
+unsigned int nowCount = 0;
 unsigned int led27 = 0;
 void loop()
 {
@@ -53,9 +54,15 @@ void loop()
   if (millis() - lastMillis > 1000)
   {
     lastMillis = millis();
-    String nowJSON = "\"thermo\":" + String(thermoRead());
-    nowJSON += ",\"voltage\":" + String(12.8);
-    logging("{\"now\":{" + nowJSON + "}}");
+    unsigned temp = thermoRead();
+    bufferss[0][bufferCount] = temp;
+    if (nowCount < NOW_COUNT)
+    {
+      String nowJSON = "\"thermo\":" + String(temp);
+      nowJSON += ",\"voltage\":" + String(12.8);
+      logging("{\"now\":{" + nowJSON + "}}");
+      nowCount++;
+    }
     bufferCount++;
     if (bufferCount > BUFFER_COUNT - 1)
     {
@@ -96,6 +103,10 @@ void messageReceived(String &topic, String &payload)
     brightness = brightness > 255 ? 255 : brightness;
     ledcWrite(0, brightness);
   }
+  if (com.hasOwnProperty("now_reset"))
+  {
+    nowCount = 0;
+  }
 }
 unsigned int thermoRead()
 {
@@ -124,7 +135,6 @@ unsigned int thermoRead()
     float C = 1 / (log(RT / R0) / 3950 + (1 / 298.15)) - 273.15; //B定数3950
     Serial.println("adc:" + String(adc) + "  ," + String(C) + "C");
     unsigned int temp = C * 100;
-    bufferss[0][bufferCount] = temp;
     return temp;
   }
   else
