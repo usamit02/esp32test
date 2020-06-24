@@ -39,7 +39,7 @@ void setup()
 
 unsigned long lastMillis = 0;
 unsigned int bufferCount = 0;
-unsigned int bufferss[10][BUFFER_COUNT];
+unsigned int buffers[7][10][BUFFER_COUNT];
 unsigned int nowCount = 0;
 unsigned int led27 = 0;
 void loop()
@@ -55,12 +55,13 @@ void loop()
   {
     lastMillis = millis();
     unsigned temp = thermoRead();
-    bufferss[0][bufferCount] = temp;
+    buffers[0][0][bufferCount] = temp;
+    buffers[1][0][bufferCount] = temp + random(1000);
     if (nowCount < NOW_COUNT)
     {
       String nowJSON = "\"thermo\":" + String(temp);
       nowJSON += ",\"voltage\":" + String(12.8);
-      logging("{\"now\":{" + nowJSON + "}}");
+      logging("{\"now\":[{" + nowJSON + "},{" + nowJSON + "}]}");
       nowCount++;
     }
     bufferCount++;
@@ -68,18 +69,22 @@ void loop()
     {
       bufferCount = 0;
       String bufferJSON = "";
-      for (int i = 0; i < 1; i++)
+      for (int device = 0; device < 2; device++)
       {
-        unsigned long bufferSum = 0;
-        for (int j = 0; j < BUFFER_COUNT; j++)
+        for (int item = 0; item < 1; item++)
         {
-          bufferSum += bufferss[i][j];
+          unsigned long bufferSum = 0;
+          for (int i = 0; i < BUFFER_COUNT; i++)
+          {
+            bufferSum += buffers[device][item][i];
+          }
+          unsigned int temp = bufferSum / BUFFER_COUNT;
+          bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8 + device) + "}";
         }
-        unsigned int temp = bufferSum / BUFFER_COUNT;
-        bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8) + "}";
+        bufferJSON += ",";
       }
-      //bufferJSON.remove(bufferJSON.length() - 1);
-      logging("{\"buffer\":" + bufferJSON + "}");
+      bufferJSON.remove(bufferJSON.length() - 1);
+      logging("{\"buffer\":[" + bufferJSON + "]}");
     }
     led27 = led27 ? 0 : 1;
     digitalWrite(27, led27);

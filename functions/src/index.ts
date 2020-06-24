@@ -12,20 +12,24 @@ exports.deviceLog = functions.region('asia-northeast1').pubsub.topic('device-log
   const m = today.getMonth() + 1;
   const d = today.getDate();
   const upd = Math.floor(today.getTime() / 1000);
-  for (let key of Object.keys(message.json)) {
-    let obj: any = {};
-    for (let k of Object.keys(message.json[key])) {
-      obj[k] = message.json[key][k];
+  for (let command of Object.keys(message.json)) {
+    let vals: Array<Object> = [];
+    for (let device: number = 0; device < message.json[command].length; device++) {
+      let obj: any = {};
+      for (let item of Object.keys(message.json[command][device])) {
+        obj[item] = message.json[command][device][item];
+      }
+      vals.push(obj);
     }
-    if (key === "buffer") {
-      admin.database().ref(`monitor/${message.attributes.deviceNumId}/${y}/${m}/${d}/${upd}`).set(obj
+    if (command === "buffer") {
+      admin.database().ref(`monitor/${message.attributes.deviceNumId}/${y}/${m}/${d}/${upd}`).set(vals
       ).catch(err => {
         console.error(`リアルタイムデータベース書き込み失敗${message.json.key}`);
       });
-    } else if (key === "now") {
-      admin.database().ref(`monitor/${message.attributes.deviceNumId}/now`).set({ [upd]: obj }
+    } else if (command === "now") {
+      admin.database().ref(`monitor/${message.attributes.deviceNumId}/now`).set({ [upd]: vals }
       ).catch(err => {
-        console.error(`リアルタイムデータベース書き込み失敗${message.json}`);
+        console.error(`リアルタイムデータベース書き込み失敗${message.json} err:${err}`);
       });
     }
   }
