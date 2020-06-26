@@ -57,17 +57,46 @@ String getJwt()
 
 void setupWifi()
 {
-  Serial.println("Starting wifi a3pro");
-
-  WiFi.mode(WIFI_STA);
+  Serial.println("Starting wifi");
   // WiFi.setSleep(false); // May help with disconnect? Seems to have been removed from WiFi
-  WiFi.begin(ssid, password);
-  Serial.println("Connecting to WiFi");
+  WiFi.begin();
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay(100);
+    Serial.print(".");
+    delay(500);
+    if( millis() > 10000){
+      break;
+    }
   }
-
+  if ( WiFi.status() != WL_CONNECTED ) {
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.beginSmartConfig(); 
+    Serial.println("Waiting for SmartConfig");
+    while (!WiFi.smartConfigDone()) {
+      delay(500);
+      Serial.print("#");     
+      if ( 30000 < millis() ) { // 30秒以上接続できなかったら抜ける
+        Serial.println("");
+        Serial.println("Reset");
+        ESP.restart();
+      }
+    } 
+    // Wi-fi接続
+    Serial.println("");
+    Serial.println("Waiting for WiFi");
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+      // 60秒以上接続できなかったら抜ける
+      if ( 60000 < millis() ) {
+        Serial.println("");
+        Serial.println("Reset");
+        ESP.restart();
+      }
+    }
+    Serial.println("");
+    Serial.println("WiFi Connected.");
+  }
   configTime(0, 0, ntp_primary, ntp_secondary);
   Serial.println("Waiting on time sync...");
   while (time(nullptr) < 1510644967)
