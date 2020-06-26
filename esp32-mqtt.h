@@ -19,9 +19,10 @@
 #include <Client.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-
+#include <WebServer.h>
 #include <MQTT.h>
 
+#include <EEPROM.h>
 #include <CloudIoTCore.h>
 #include <CloudIoTCoreMqtt.h>
 #include "ciotc_config.h" // Update this file with your configuration
@@ -55,7 +56,7 @@ String getJwt()
   return jwt;
 }
 
-void setupWifi()
+void setupWifi(char *ssid,char *password)
 {
   Serial.println("Starting wifi a3pro");
 
@@ -115,18 +116,64 @@ void connect()
   mqtt->mqttConnect();
 }
 
-void setupCloudIoT()
-{
+void setupCloudIoT(char *ssid,char *password){ 
   device = new CloudIoTCoreDevice(
       project_id, location, registry_id, device_id,
       private_key_str);
 
-  setupWifi();
+  setupWifi(ssid,password);
   netClient = new WiFiClientSecure();
   mqttClient = new MQTTClient(512);
   mqttClient->setOptions(180, true, 1000); // keepAlive, cleanSession, timeout
   mqtt = new CloudIoTCoreMqtt(mqttClient, netClient, device);
   mqtt->setUseLts(true);
   mqtt->startMQTT();
+}
+WebServer server(80);
+void handleRoot() {
+  String html = "";
+  html += "<h1>WiFi Settings</h1>";
+  html += "<form method='post'>";
+  html += "  <input type='text' name='ssid' placeholder='ssid'><br>";
+  html += "  <input type='text' name='pass' placeholder='pass'><br>";
+  html += "  <input type='submit'><br>";
+  html += "</form>";
+  server.send(200, "text/html", html);
+}
+void handleSubmit(){
+  server.arg("ssid").toCharArray(conf.ssid, 32);
+	server.arg("pass").toCharArray(conf.password, 32);
+	EEPROM.write(0, 100);
+	EEPROM.put<Config>(1, config);
+	EEPROM.commit();		
+  String html = "";
+  html += "<h1>WiFi Settings</h1>";
+  html += "ESSID:" + ssid + "<br>";
+  html += "key(pass):" + pass + "<br>";
+  html += "<hr>";
+  html += "<h1>Please Reset!</h1>";
+  server.send(200, "text/html", html);
+}
+void setupAp(){
+  WiFi.softAP("esp32");
+  delay(100);
+  IPAddress ip(192, 168, 11, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.softAPConfig(ip,ip,subnet);
+  IPAddress myIP = WiFi.softAPIP();
+  server.on("/",HTTP_GET,handleRoot);
+  server.on("/",HTTP_POST,handleSubmit);
+  server.begin();
+  Serial.println("wifi ap start!");
+}
+void wifiSetup(){
+  EEPROM.begin(1000);
+	if (EEPROM.read(0) == 100) { EEPROM.get<Config>(1, config); }
+   if(config.password == toCharArray("12345678",32)){
+    setupAp();
+  }else{
+    setupCloudIoT(config.ssid,config.password);
+  }
+  delay(10); // <- fixes some issues with WiFi stability
 }
 #endif //__ESP32_MQTT_H__

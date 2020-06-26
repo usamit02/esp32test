@@ -13,7 +13,7 @@ exports.deviceLog = functions.region('asia-northeast1').pubsub.topic('device-log
   const d = today.getDate();
   const upd = Math.floor(today.getTime() / 1000);
   for (let command of Object.keys(message.json)) {
-    let vals: Array<Object> = [];
+    let vals: Array<Object> = [{}];
     for (let device: number = 0; device < message.json[command].length; device++) {
       let obj: any = {};
       for (let item of Object.keys(message.json[command][device])) {

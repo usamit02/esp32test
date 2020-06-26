@@ -16,8 +16,7 @@
  *****************************************************************************/
 #include "esp32-mqtt.h"
 #include <Arduino_JSON.h>
-#define BUFFER_COUNT 60
-#define NOW_COUNT 60
+
 void setup()
 {
   Serial.begin(115200);
@@ -28,13 +27,15 @@ void setup()
   ledcAttachPin(12, 0);
   digitalWrite(27, 1);
   delay(500);
-  digitalWrite(27, 0);
-  setupCloudIoT();
-  delay(10); // <- fixes some issues with WiFi stability
+  digitalWrite(27, 0);   
+	wifiSetup();
+  
+  /*
   if (!mqttClient->connected())
   {
     connect();
   }
+  */
 }
 
 unsigned long lastMillis = 0;
@@ -44,52 +45,57 @@ unsigned int nowCount = 0;
 unsigned int led27 = 0;
 void loop()
 {
-  mqtt->loop();
-  delay(10); // <- fixes some issues with WiFi stability
+  if(){
+    server.handleClient();
+  }else{  
+    mqtt->loop();
+    delay(10); // <- fixes some issues with WiFi stability
 
-  if (!mqttClient->connected())
-  {
-    connect();
-  }
-  if (millis() - lastMillis > 1000)
-  {
-    lastMillis = millis();
-    unsigned temp = thermoRead();
-    buffers[0][0][bufferCount] = temp;
-    buffers[1][0][bufferCount] = temp + random(1000);
-    if (nowCount < NOW_COUNT)
+    if (!mqttClient->connected())
     {
-      String nowJSON = "\"thermo\":" + String(temp);
-      nowJSON += ",\"voltage\":" + String(12.8);
-      logging("{\"now\":[{" + nowJSON + "},{" + nowJSON + "}]}");
-      nowCount++;
+      connect();
     }
-    bufferCount++;
-    if (bufferCount > BUFFER_COUNT - 1)
+    if (millis() - lastMillis > 1000)
     {
-      bufferCount = 0;
-      String bufferJSON = "";
-      for (int device = 0; device < 2; device++)
+      lastMillis = millis();
+      unsigned temp = thermoRead();
+      buffers[0][0][bufferCount] = temp;
+      buffers[1][0][bufferCount] = temp + random(1000);
+      if (nowCount < NOW_COUNT)
       {
-        for (int item = 0; item < 1; item++)
-        {
-          unsigned long bufferSum = 0;
-          for (int i = 0; i < BUFFER_COUNT; i++)
-          {
-            bufferSum += buffers[device][item][i];
-          }
-          unsigned int temp = bufferSum / BUFFER_COUNT;
-          bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8 + device) + "}";
-        }
-        bufferJSON += ",";
+        String nowJSON = "\"thermo\":" + String(temp);
+        nowJSON += ",\"voltage\":" + String(12.8);
+        logging("{\"now\":[{" + nowJSON + "},{" + nowJSON + "}]}");
+        nowCount++;
       }
-      bufferJSON.remove(bufferJSON.length() - 1);
-      logging("{\"buffer\":[" + bufferJSON + "]}");
+      bufferCount++;
+      if (bufferCount > BUFFER_COUNT - 1)
+      {
+        bufferCount = 0;
+        String bufferJSON = "";
+        for (int device = 0; device < 2; device++)
+        {
+          for (int item = 0; item < 1; item++)
+          {
+            unsigned long bufferSum = 0;
+            for (int i = 0; i < BUFFER_COUNT; i++)
+            {
+              bufferSum += buffers[device][item][i];
+            }
+            unsigned int temp = bufferSum / BUFFER_COUNT;
+            bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8 + device) + "}";
+          }
+          bufferJSON += ",";
+        }
+        bufferJSON.remove(bufferJSON.length() - 1);
+        logging("{\"buffer\":[" + bufferJSON + "]}");
+      }
+      led27 = led27 ? 0 : 1;
+      digitalWrite(27, led27);
     }
-    led27 = led27 ? 0 : 1;
-    digitalWrite(27, led27);
   }
 }
+
 void logging(String msg)
 {
   publishTelemetry(msg); // publish処理(送信処理)
@@ -148,3 +154,5 @@ unsigned int thermoRead()
     return 0;
   }
 }
+
+
