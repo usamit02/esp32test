@@ -94,7 +94,7 @@ const char *ex_topics[ex_num_topics];
 #define NOW_COUNT 60
 struct Config {
 	uint8_t ip[4] = { 192,168,10,2 };
-	char ssid[32] = "ap-pc-5660bc", password[32]="12345678";
+	char ssid[32] = "esp32", password[32]="12345678";//ap-pc-5660bc
 	int WiFi_timeout = 180;
 };
 Config config;

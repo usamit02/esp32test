@@ -19,10 +19,14 @@
 #include <Client.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <WebServer.h>
 #include <MQTT.h>
 
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <DNSServer.h>
 #include <EEPROM.h>
+
 #include <CloudIoTCore.h>
 #include <CloudIoTCoreMqtt.h>
 #include "ciotc_config.h" // Update this file with your configuration
@@ -141,38 +145,45 @@ void handleRoot() {
   server.send(200, "text/html", html);
 }
 void handleSubmit(){
-  server.arg("ssid").toCharArray(conf.ssid, 32);
-	server.arg("pass").toCharArray(conf.password, 32);
+  server.arg("ssid").toCharArray(config.ssid, 32);
+	server.arg("pass").toCharArray(config.password, 32);
 	EEPROM.write(0, 100);
 	EEPROM.put<Config>(1, config);
 	EEPROM.commit();		
   String html = "";
   html += "<h1>WiFi Settings</h1>";
-  html += "ESSID:" + ssid + "<br>";
-  html += "key(pass):" + pass + "<br>";
+  html += "ESSID:" + String(config.ssid) + "<br>";
+  html += "key(pass):" + String(config.password) + "<br>";
   html += "<hr>";
-  html += "<h1>Please Reset!</h1>";
+  html += "<h1>now Reset!</h1>";
   server.send(200, "text/html", html);
+  Serial.println("reset");
+  ESP.restart();
 }
-void setupAp(){
-  WiFi.softAP("esp32");
-  delay(100);
-  IPAddress ip(192, 168, 11, 1);
-  IPAddress subnet(255, 255, 255, 0);
-  WiFi.softAPConfig(ip,ip,subnet);
-  IPAddress myIP = WiFi.softAPIP();
+void setupAp(){  
+  IPAddress ip(192, 168, 10, 4);
+  IPAddress subnet(255, 255, 255, 0);    
+  DNSServer dnsServer;
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(config.ssid,config.password);
+  WiFi.softAPConfig(ip,ip,subnet); 
   server.on("/",HTTP_GET,handleRoot);
   server.on("/",HTTP_POST,handleSubmit);
+  dnsServer.start(53, "*", ip);
   server.begin();
   Serial.println("wifi ap start!");
+  while(1){
+    dnsServer.processNextRequest();
+    server.handleClient();
+  }
 }
 void wifiSetup(){
   EEPROM.begin(1000);
-	if (EEPROM.read(0) == 100) { EEPROM.get<Config>(1, config); }
-   if(config.password == toCharArray("12345678",32)){
-    setupAp();
+	if (EEPROM.read(0) == 100) {
+     EEPROM.get<Config>(1, config); 
+     setupCloudIoT(config.ssid,config.password);   
   }else{
-    setupCloudIoT(config.ssid,config.password);
+     setupAp();
   }
   delay(10); // <- fixes some issues with WiFi stability
 }

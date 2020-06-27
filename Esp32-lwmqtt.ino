@@ -44,55 +44,51 @@ unsigned int buffers[7][10][BUFFER_COUNT];
 unsigned int nowCount = 0;
 unsigned int led27 = 0;
 void loop()
-{
-  if(){
-    server.handleClient();
-  }else{  
-    mqtt->loop();
-    delay(10); // <- fixes some issues with WiFi stability
+{ 
+  mqtt->loop();
+  delay(10); // <- fixes some issues with WiFi stability
 
-    if (!mqttClient->connected())
+  if (!mqttClient->connected())
+  {
+    connect();
+  }
+  if (millis() - lastMillis > 1000)
+  {
+    lastMillis = millis();
+    unsigned temp = thermoRead();
+    buffers[0][0][bufferCount] = temp;
+    buffers[1][0][bufferCount] = temp + random(1000);
+    if (nowCount < NOW_COUNT)
     {
-      connect();
+      String nowJSON = "\"thermo\":" + String(temp);
+      nowJSON += ",\"voltage\":" + String(12.8);
+      logging("{\"now\":[{" + nowJSON + "},{" + nowJSON + "}]}");
+      nowCount++;
     }
-    if (millis() - lastMillis > 1000)
+    bufferCount++;
+    if (bufferCount > BUFFER_COUNT - 1)
     {
-      lastMillis = millis();
-      unsigned temp = thermoRead();
-      buffers[0][0][bufferCount] = temp;
-      buffers[1][0][bufferCount] = temp + random(1000);
-      if (nowCount < NOW_COUNT)
+      bufferCount = 0;
+      String bufferJSON = "";
+      for (int device = 0; device < 2; device++)
       {
-        String nowJSON = "\"thermo\":" + String(temp);
-        nowJSON += ",\"voltage\":" + String(12.8);
-        logging("{\"now\":[{" + nowJSON + "},{" + nowJSON + "}]}");
-        nowCount++;
-      }
-      bufferCount++;
-      if (bufferCount > BUFFER_COUNT - 1)
-      {
-        bufferCount = 0;
-        String bufferJSON = "";
-        for (int device = 0; device < 2; device++)
+        for (int item = 0; item < 1; item++)
         {
-          for (int item = 0; item < 1; item++)
+          unsigned long bufferSum = 0;
+          for (int i = 0; i < BUFFER_COUNT; i++)
           {
-            unsigned long bufferSum = 0;
-            for (int i = 0; i < BUFFER_COUNT; i++)
-            {
-              bufferSum += buffers[device][item][i];
-            }
-            unsigned int temp = bufferSum / BUFFER_COUNT;
-            bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8 + device) + "}";
+            bufferSum += buffers[device][item][i];
           }
-          bufferJSON += ",";
+          unsigned int temp = bufferSum / BUFFER_COUNT;
+          bufferJSON += "{\"thermo\":" + String(temp) + ",\"voltage\":" + String(12.8 + device) + "}";
         }
-        bufferJSON.remove(bufferJSON.length() - 1);
-        logging("{\"buffer\":[" + bufferJSON + "]}");
+        bufferJSON += ",";
       }
-      led27 = led27 ? 0 : 1;
-      digitalWrite(27, led27);
+      bufferJSON.remove(bufferJSON.length() - 1);
+      logging("{\"buffer\":[" + bufferJSON + "]}");
     }
+    led27 = led27 ? 0 : 1;
+    digitalWrite(27, led27);
   }
 }
 
