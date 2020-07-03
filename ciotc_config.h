@@ -93,8 +93,11 @@ const char *ex_topics[ex_num_topics];
 #define BUFFER_COUNT 60
 #define NOW_COUNT 60
 struct Config {
-	uint8_t ip[4] = { 192,168,10,2 };
-	char ssid[32] = "esp32", password[32]="12345678";//ap-pc-5660bc
-	int WiFi_timeout = 180;
+	char ssid[1][32], pass[1][32];//ap-pc-5660bc
+	unsigned int wifi_mode = 0;
+    unsigned int wifi_timeout = 180;
 };
 Config config;
+int wifiStatus=0;
+int wifiSeconds=0;
+int wifiRetry=0;

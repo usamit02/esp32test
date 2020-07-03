@@ -18,11 +18,13 @@
 #include <Arduino_JSON.h>
 
 void setup()
-{
+{  
   Serial.begin(115200);
   pinMode(14, OUTPUT);
   pinMode(25, OUTPUT);
   pinMode(27, OUTPUT);
+  pinMode(32, INPUT_PULLUP);
+  attachInterrupt(32, apSwitch, FALLING);
   ledcSetup(0, 12800, 8);
   ledcAttachPin(12, 0);
   digitalWrite(27, 1);
@@ -45,16 +47,11 @@ unsigned int nowCount = 0;
 unsigned int led27 = 0;
 void loop()
 { 
-  mqtt->loop();
-  delay(10); // <- fixes some issues with WiFi stability
-
-  if (!mqttClient->connected())
-  {
-    connect();
-  }
-  if (millis() - lastMillis > 1000)
-  {
+  wifiLoop();
+  if (millis() - lastMillis > 1000){
     lastMillis = millis();
+    wifiCheck();
+    Serial.println("wifiStatus:" + String(wifiStatus));    
     unsigned temp = thermoRead();
     buffers[0][0][bufferCount] = temp;
     buffers[1][0][bufferCount] = temp + random(1000);
@@ -89,12 +86,13 @@ void loop()
     }
     led27 = led27 ? 0 : 1;
     digitalWrite(27, led27);
-  }
+  }  
+  delay(10); // <- fixes some issues with WiFi stability
 }
 
 void logging(String msg)
 {
-  publishTelemetry(msg); // publish処理(送信処理)
+  //publishTelemetry(msg); // publish処理(送信処理)
   Serial.println(msg);
 }
 void messageReceived(String &topic, String &payload)
@@ -149,6 +147,22 @@ unsigned int thermoRead()
     Serial.println("サーミスタ異常");
     return 0;
   }
+}
+void apSwitch(){
+  if(wifiStatus==10) return;
+  detachInterrupt(digitalPinToInterrupt(32));
+  delay(10);
+  unsigned int count=0;
+  for(int i=0;i<10;i++){
+    count+=digitalRead(32)?0:1;
+    delay(5);
+  }
+  if(count>8){
+    wifiStatus=9;
+  }else{
+    Serial.println("apSwitch fail" + String(count));
+    attachInterrupt(32, apSwitch, FALLING);
+  }  
 }
 
 
