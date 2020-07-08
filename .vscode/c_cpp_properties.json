@@ -3,10 +3,19 @@
         {
             "name": "Win32",
             "includePath": [
-                "C:\\Users\\j1900\\Documents\\Arduino\\libraries\\Arduino_JSON-master\\src",
-                "C:\\Users\\j1900\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
-                "C:\\Users\\j1900\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**"
+                "C:\\Users\\clife\\Documents\\Arduino\\libraries\\**",
+                "C:\\Users\\clife\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
+                "C:\\Users\\clife\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**"
             ],
+            "browse": {
+                "path": [
+                  "${workspaceFolder}",
+                  "${env:PACKAGES_PATH}/tools",
+                  "${env:PACKAGES_PATH}/hardware",
+                  "${env:PACKAGES_PATH}/libraries",
+                  "${env:USER_PATH}/libraries"
+                ]
+              },
             "forcedInclude": [],
             "intelliSenseMode": "msvc-x64"
         }

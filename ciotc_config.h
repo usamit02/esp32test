@@ -15,8 +15,8 @@
 // This file contains your configuration used to connect to Cloud IoT Core
 
 // Wifi network details.
-const char *ssid = "ap-pc-5660bc"; //"A3_Pro";
-const char *password = "12345678"; //"xr250me08";
+const char *ssid = "ap-pc-5660bc"; //"a3
+const char *password = "12345678"; //"";xr250me08
 
 // Cloud iot details.
 const char *project_id = "iot-core8266";

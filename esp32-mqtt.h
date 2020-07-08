@@ -117,11 +117,10 @@ void connect()
 
 void setupCloudIoT()
 {
+  setupWifi();
   device = new CloudIoTCoreDevice(
       project_id, location, registry_id, device_id,
-      private_key_str);
-
-  setupWifi();
+      private_key_str);  
   netClient = new WiFiClientSecure();
   mqttClient = new MQTTClient(512);
   mqttClient->setOptions(180, true, 1000); // keepAlive, cleanSession, timeout
