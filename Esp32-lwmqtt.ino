@@ -24,7 +24,6 @@ void setup()
   pinMode(25, OUTPUT);
   pinMode(27, OUTPUT);
   pinMode(32, INPUT_PULLUP);
-  attachInterrupt(32, apSwitch, FALLING);
   ledcSetup(0, 12800, 8);
   ledcAttachPin(12, 0);
   digitalWrite(27, 1);
@@ -95,26 +94,21 @@ void logging(String msg)
   //publishTelemetry(msg); // publish処理(送信処理)
   Serial.println(msg);
 }
-void messageReceived(String &topic, String &payload)
-{
+void messageReceived(String &topic, String &payload){
   JSONVar com = JSON.parse(payload);
-  if (com.hasOwnProperty("led_green"))
-  {
+  if (com.hasOwnProperty("led_green")){
     digitalWrite(14, (int)com["led_green"]);
   }
-  if (com.hasOwnProperty("led_red"))
-  {
+  if (com.hasOwnProperty("led_red")){
     unsigned int brightness = (int)com["led_red"];
     brightness = brightness > 255 ? 255 : brightness;
     ledcWrite(0, brightness);
   }
-  if (com.hasOwnProperty("now_reset"))
-  {
+  if (com.hasOwnProperty("now_reset")){
     nowCount = 0;
   }
 }
-unsigned int thermoRead()
-{
+unsigned int thermoRead(){
   float R0 = 10000.0;
   float R1 = 10000.0;
   int adc;
@@ -122,17 +116,14 @@ unsigned int thermoRead()
   int adcnum = 0;
   digitalWrite(25, 1);
   delay(10);
-  for (int i = 0; i < 3; i++)
-  {
+  for (int i = 0; i < 3; i++){
     adc = analogRead(A0);
-    if (adc > 500 && adc < 3500)
-    {
+    if (adc > 500 && adc < 3500){
       adcsum += adc;
       adcnum++;
     }
   }
-  if (adcnum)
-  {
+  if (adcnum) {
     adc = adcsum / adcnum;
     float V = (float)adc * 3.3 / (4096 * 1.0); //0.9=補正係数
     digitalWrite(25, 0);
@@ -141,28 +132,10 @@ unsigned int thermoRead()
     Serial.println("adc:" + String(adc) + "  ," + String(C) + "C");
     unsigned int temp = C * 100;
     return temp;
-  }
-  else
-  {
+  }else{
     Serial.println("サーミスタ異常");
     return 0;
   }
-}
-void apSwitch(){
-  if(wifiStatus==10) return;
-  detachInterrupt(digitalPinToInterrupt(32));
-  delay(10);
-  unsigned int count=0;
-  for(int i=0;i<10;i++){
-    count+=digitalRead(32)?0:1;
-    delay(5);
-  }
-  if(count>8){
-    wifiStatus=9;
-  }else{
-    Serial.println("apSwitch fail" + String(count));
-    attachInterrupt(32, apSwitch, FALLING);
-  }  
 }
 
 

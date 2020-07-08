@@ -57,18 +57,18 @@ bool publishTelemetry(String subfolder, const char *data, int length){
   return mqtt->publishTelemetry(subfolder, data, length);
 }
 void setupWifi(char *ssid="",char *pass=""){ 
-  wifiStatus=0;  
-  Serial.println("WiFi starting");
+  wifiStatus=0; 
   WiFi.mode(WIFI_STA);
   delay(10);
   if(sizeof(ssid)>0){
-    WiFi.begin(ssid, pass);
+    Serial.println("WiFi starting ssid:"+ String(ssid) + " pass:"+ String(pass));
+    WiFi.begin(ssid, pass);    
   }else{
-    WiFi.begin();
-  }  
-  Serial.println("Connecting to WiFi");  
+    Serial.println("WiFi starting");
+    WiFi.begin();    
+  }
 }
-void setupCloudIoT(char *ssid,char *password){ 
+void setupCloudIoT(){ 
   device = new CloudIoTCoreDevice(
       project_id, location, registry_id, device_id,
       private_key_str);
@@ -84,30 +84,34 @@ DNSServer dnsServer;
 void handleRoot() {
   String html = "";
   html += "<h1>WiFi Settings</h1>";
-  html += "<form method='post'>";
-  html += "  <input type='text' name='ssid1' placeholder='ssid'><br>";
-  html += "  <input type='text' name='pass1' placeholder='pass'><br><br>";
-  html += "  <input type='text' name='ssid2' placeholder='ssid'><br>";
-  html += "  <input type='text' name='pass2' placeholder='pass'><br>";
+  html += "<form method='post' action='config'>";
+  html += "  <input type='text' name='ssid1' placeholder='wifi SSID 2 of 1' value='"+ String(config.ssid[0]) +"'><br>";
+  html += "  <input type='text' name='pass1' placeholder='wifi password 2 of 1' value='"+ String(config.ssid[1]) +"'><br><br>";
+  html += "  <input type='text' name='ssid2' placeholder='wifi SSID 2 of 2' value='"+ String(config.ssid[2]) +"'><br>";
+  html += "  <input type='text' name='pass2' placeholder='wifi password 2 of 2' value='"+ String(config.ssid[3]) +"'><br>";
   html += "  <input type='submit'><br>";
   html += "</form>";
   server.send(200, "text/html", html);
 }
-void handleSubmit(){
+void handleConfig(){
+  Serial.println("ssid1:" + server.arg("ssid1") +" pass1:" + server.arg("pass1") +" ssid2:" + server.arg("ssid2") +" pass2:" + server.arg("pass2"));
   server.arg("ssid1").toCharArray(config.ssid[0], 32);
-	server.arg("pass1").toCharArray(config.pass[0], 32);
-  server.arg("ssid2").toCharArray(config.ssid[1], 32);
-	server.arg("pass2").toCharArray(config.pass[1], 32);
+  server.arg("pass1").toCharArray(config.ssid[1], 32);	
+  server.arg("ssid2").toCharArray(config.ssid[2], 32);
+  server.arg("pass2").toCharArray(config.ssid[3], 32);	
+  Serial.println("config ssid1:" + String(config.ssid[0]) +" pass1:" + String(config.ssid[1]) +" ssid2:" + String(config.ssid[2]) +" pass2:" + String(config.ssid[3]));
+
 	EEPROM.write(0, 100);
 	EEPROM.put<Config>(1, config);
 	EEPROM.commit();		
+  
   String html = "";
   html += "<h1>WiFi Settings</h1>";
   html += "ESSID:" + String(config.ssid[0]) + "<br>";
-  html += "key(pass):" + String(config.pass[0]) + "<br>";
+  html += "key(pass):" + String(config.ssid[1]) + "<br>";
   html += "<hr>";
-  html += "ESSID:" + String(config.ssid[1]) + "<br>";
-  html += "key(pass):" + String(config.pass[1]) + "<br>";
+  html += "ESSID:" + String(config.ssid[2]) + "<br>";
+  html += "key(pass):" + String(config.ssid[3]) + "<br>";
   html += "<hr>";
   html += "<h1>now Reset!</h1>";
   server.send(200, "text/html", html);
@@ -116,7 +120,7 @@ void handleSubmit(){
 }
 void setupAp(){   
   wifiStatus=10;
-  IPAddress ip(192, 168, 10, 4);
+  IPAddress ip(192, 168, 10, 2);
   IPAddress subnet(255, 255, 255, 0);
   WiFi.disconnect(true, true);
   delay(100);
@@ -125,7 +129,7 @@ void setupAp(){
   delay(100);
   WiFi.softAPConfig(ip,ip,subnet); 
   server.on("/",HTTP_GET,handleRoot);
-  server.on("/",HTTP_POST,handleSubmit);
+  server.on("/config",HTTP_POST,handleConfig);
   dnsServer.start(53, "*", ip);
   delay(10);
   server.begin();
@@ -143,8 +147,8 @@ void wifiSetup(){
 }
 void wifiLost(){
   wifiSeconds=0;
-  if(wifiRetry<3){      
-    setupWifi(config.ssid[wifiRetry%2],config.pass[wifiRetry%2]);
+  if(wifiRetry<3){   
+    setupWifi(config.ssid[wifiRetry%2*2],config.ssid[wifiRetry%2*2+1]);
     wifiRetry++;    
   }else{
     setupAp();
@@ -153,29 +157,46 @@ void wifiLost(){
 void wifiLoop(){
   if(wifiStatus==1){//mqtt connected
     mqtt->loop();
-  }else if(wifiStatus==10){//wifi AP seaching
+  } else if(wifiStatus==10){//wifi AP searching
     dnsServer.processNextRequest();
     server.handleClient();
-  }
+  } 
+  if(wifiStatus<9){//not wifi AP mode and searching
+    if(!digitalRead(32)){
+      delay(10);
+      unsigned int count=0;
+      for(int i=0;i<10;i++){
+        count+=digitalRead(32)?0:1;
+        delay(5);
+      }
+      if(count>8){
+        wifiStatus=9;
+      }else{
+        Serial.println("apSwitch fail" + String(count));
+      }  
+    }
+  }  
 }
 void wifiCheck(){
   if(wifiStatus==0){//wifi STA searching
     if (WiFi.status() == WL_CONNECTED){
+      /*
       wifiStatus=111;
       configTime(0, 0, ntp_primary, ntp_secondary);
       Serial.println("Waiting on time sync...");
       while (time(nullptr) < 1510644967){
         delay(10);
       }
-      Serial.println("sync!");
-      setupCloudIoT(config.ssid[0],config.pass[0]);                    
+      */
+      Serial.println("WiFi connected!");
+      setupCloudIoT();                    
       wifiStatus=1;wifiSeconds=0;
     }else if(wifiSeconds>60){
       wifiLost();
     }else{
       wifiSeconds++;Serial.print(".");
     }  
-  }else if(wifiStatus==1&&WiFi.status() != WL_CONNECTED){//&&!mqttClient->connected()){//mqtt lost        
+  }else if(wifiStatus==1&&!mqttClient->connected()){//&&!mqttClient->connected()){//mqtt lost        
     if(wifiSeconds==0){
       Serial.print("mqtt lost!try reconnecting");        
     }
@@ -197,3 +218,26 @@ void wifiCheck(){
   }
 }
 #endif //__ESP32_MQTT_H__
+/*
+arg=server.arg("pass1");
+  arg.toCharArray(buf, arg.length()+1);
+  Serial.println("pass1:" + arg + " buf:" +String(buf));
+  for (int i=0;i<32;i++){
+    config.pass[0][i]=buf[i];
+  }
+  arg=server.arg("ssid2");
+  arg.toCharArray(buf, arg.length()+1);
+  Serial.println("ssid2:" + arg + " buf:" +String(buf));
+  for (int i=0;i<32;i++){
+    config.ssid[1][i]=buf[i];
+  }  
+  arg=server.arg("pass2");
+  arg.toCharArray(buf, arg.length()+1);
+  Serial.println("pass2:" + arg + " buf:" +String(buf));
+  for (int i=0;i<32;i++){
+    config.pass[1][i]=buf[i];
+  }
+
+
+
+*/
