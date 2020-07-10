@@ -69,6 +69,7 @@ void setupWifi(char *ssid="",char *pass=""){
   }
 }
 void setupCloudIoT(){ 
+  Serial.println("setupCloudIoT...");
   device = new CloudIoTCoreDevice(
       project_id, location, registry_id, device_id,
       private_key_str);
@@ -78,6 +79,7 @@ void setupCloudIoT(){
   mqtt = new CloudIoTCoreMqtt(mqttClient, netClient, device);
   mqtt->setUseLts(true);
   mqtt->startMQTT();
+  Serial.println('done!');
 }
 WebServer server(80);   
 DNSServer dnsServer;
