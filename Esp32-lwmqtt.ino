@@ -91,7 +91,7 @@ void loop()
 
 void logging(String msg)
 {
-  //publishTelemetry(msg); // publish処理(送信処理)
+  publishTelemetry(msg); // publish処理(送信処理)
   Serial.println(msg);
 }
 void messageReceived(String &topic, String &payload){
