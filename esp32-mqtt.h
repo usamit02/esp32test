@@ -79,6 +79,8 @@ void setupCloudIoT(){
   mqtt = new CloudIoTCoreMqtt(mqttClient, netClient, device);
   mqtt->setUseLts(true);
   mqtt->startMQTT();
+  delay(10);
+  wifiStatus=1;wifiSeconds=0;
   Serial.println('done!');
 }
 WebServer server(80);   
@@ -141,7 +143,7 @@ void wifiSetup(){
   EEPROM.begin(1000);
 	if (EEPROM.read(0) == 100) {
      EEPROM.get<Config>(1, config); 
-     setupWifi();
+     setupWifi(config.ssid[2],config.ssid[3]);
   }else{
      setupAp();
   }
@@ -156,7 +158,7 @@ void wifiLost(){
     setupAp();
   }
 }
-void wifiLoop(){
+void wifiLoop(){//メインループ中10ms毎にコール
   if(wifiStatus==1){//mqtt connected
     mqtt->loop();
   } else if(wifiStatus==10){//wifi AP searching
@@ -179,35 +181,40 @@ void wifiLoop(){
     }
   }  
 }
-void wifiCheck(){
+void wifiCheck(){//メインループ１秒毎にコール
   if(wifiStatus==0){//wifi STA searching
-    if (WiFi.status() == WL_CONNECTED){
-      /*
+    if (WiFi.status() == WL_CONNECTED){      
       wifiStatus=111;
       configTime(0, 0, ntp_primary, ntp_secondary);
       Serial.println("Waiting on time sync...");
       while (time(nullptr) < 1510644967){
         delay(10);
-      }
-      */
+      }      
       Serial.println("WiFi connected!");
-      setupCloudIoT();                    
-      wifiStatus=1;wifiSeconds=0;
+      setupCloudIoT();          
     }else if(wifiSeconds>60){
       wifiLost();
     }else{
       wifiSeconds++;Serial.print(".");
     }  
-  }else if(wifiStatus==1&&!mqttClient->connected()){//&&!mqttClient->connected()){//mqtt lost        
-    if(wifiSeconds==0){
-      Serial.print("mqtt lost!try reconnecting");        
+  }else if(wifiStatus==1){//&&!mqttClient->connected()){//mqtt lost        
+    if(WiFi.status()!=WL_CONNECTED){
+      wifiStatus=0;
+      WiFi.begin();
+    }else if(!mqttClient->connected()){    
+      if(wifiSeconds==0){
+        Serial.print("mqtt lost!try reconnecting");        
+      }
+      while (WiFi.status() != WL_CONNECTED){
+        delay(100);
+      }
+      mqtt->mqttConnect();
+      wifiSeconds++;Serial.print(".");    
+      if(wifiSeconds>60){
+        wifiLost();
+      }
     }
-    mqtt->mqttConnect();
-    wifiSeconds++;Serial.print(".");    
-    if(wifiSeconds>60){
-      wifiLost();
-    }
-  }else if(wifiStatus==9){//ap button push
+  } else if(wifiStatus==9){//ap button push
     setupAp();
   }else if(wifiStatus==10){//ap seaching
     if(wifiSeconds>120){
